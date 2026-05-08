@@ -95,6 +95,11 @@ export function extractAccountId(tokens: TokenResponse): string | undefined {
   return undefined
 }
 
+export function extractEmail(tokens: TokenResponse): string | undefined {
+  const claims = tokens.id_token ? parseJwtClaims(tokens.id_token) : tokens.access_token ? parseJwtClaims(tokens.access_token) : undefined
+  return claims?.email
+}
+
 function buildAuthorizeUrl(redirectUri: string, pkce: PkceCodes, state: string): string {
   const params = new URLSearchParams({
     response_type: "code",
@@ -425,13 +430,14 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
             if (currentAuth.type !== "oauth") return fetch(requestInput, init)
 
             // Cast to include accountId field
-            const authWithAccount = currentAuth as typeof currentAuth & { accountId?: string }
+            const authWithAccount = currentAuth as typeof currentAuth & { accountId?: string; email?: string }
 
             // Check if token needs refresh
             if (!currentAuth.access || currentAuth.expires < Date.now()) {
               log.info("refreshing codex access token")
               const tokens = await refreshAccessToken(currentAuth.refresh)
               const newAccountId = extractAccountId(tokens) || authWithAccount.accountId
+              const newEmail = extractEmail(tokens) || authWithAccount.email
               await input.client.auth.set({
                 path: { id: "openai" },
                 body: {
@@ -440,10 +446,12 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
                   access: tokens.access_token,
                   expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
                   ...(newAccountId && { accountId: newAccountId }),
+                  ...(newEmail && { email: newEmail }),
                 },
               })
               currentAuth.access = tokens.access_token
               authWithAccount.accountId = newAccountId
+              authWithAccount.email = newEmail
             }
 
             // Build headers
@@ -513,6 +521,7 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
                   access: tokens.access_token,
                   expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
                   accountId,
+                  email: extractEmail(tokens),
                 }
               },
             }
@@ -582,14 +591,15 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
 
                     const tokens: TokenResponse = await tokenResponse.json()
 
-                    return {
-                      type: "success" as const,
-                      refresh: tokens.refresh_token,
-                      access: tokens.access_token,
-                      expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-                      accountId: extractAccountId(tokens),
-                    }
+                  return {
+                    type: "success" as const,
+                    refresh: tokens.refresh_token,
+                    access: tokens.access_token,
+                    expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                    accountId: extractAccountId(tokens),
+                    email: extractEmail(tokens),
                   }
+                }
 
                   if (response.status !== 403 && response.status !== 404) {
                     return { type: "failed" as const }

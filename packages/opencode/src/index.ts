@@ -18,6 +18,7 @@ import { ServeCommand } from "./cli/cmd/serve"
 import { Filesystem } from "@/util/filesystem"
 import { DebugCommand } from "./cli/cmd/debug"
 import { StatsCommand } from "./cli/cmd/stats"
+import { StatusCommand } from "./cli/cmd/status"
 import { McpCommand } from "./cli/cmd/mcp"
 import { GithubCommand } from "./cli/cmd/github"
 import { ExportCommand } from "./cli/cmd/export"
@@ -170,6 +171,7 @@ const cli = yargs(args)
   .command(WebCommand)
   .command(ModelsCommand)
   .command(StatsCommand)
+  .command(StatusCommand)
   .command(ExportCommand)
   .command(ImportCommand)
   .command(GithubCommand)

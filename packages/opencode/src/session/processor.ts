@@ -6,6 +6,8 @@ import { Config } from "@/config/config"
 import { Permission } from "@/permission"
 import { Plugin } from "@/plugin"
 import { Snapshot } from "@/snapshot"
+import { Auth } from "@/auth"
+import { recordTurn } from "@/status/usage"
 import * as Session from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
@@ -94,10 +96,12 @@ export const layer: Layer.Layer<
   | Plugin.Service
   | SessionSummary.Service
   | SessionStatus.Service
+  | Auth.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
     const session = yield* Session.Service
+    const auth = yield* Auth.Service
     const config = yield* Config.Service
     const bus = yield* Bus.Service
     const snapshot = yield* Snapshot.Service
@@ -457,6 +461,18 @@ export const layer: Layer.Layer<
               usage: value.usage,
               metadata: value.providerMetadata,
             })
+            const authInfo = yield* auth.get(ctx.model.providerID).pipe(Effect.orElseSucceed(() => undefined))
+            const rateLimit = (value.providerMetadata as { openai?: { rateLimit?: unknown } } | undefined)?.openai
+              ?.rateLimit as { usedPercent?: number; windowMinutes?: number; resetsAt?: number } | undefined
+            yield* recordTurn({
+              providerID: ctx.model.providerID,
+              email: authInfo?.type === "oauth" ? authInfo.email : undefined,
+              totalUsd: usage.cost,
+              inputTokens: usage.tokens.input,
+              cachedInputTokens: usage.tokens.cache.read,
+              outputTokens: usage.tokens.output + usage.tokens.reasoning,
+              rateLimit,
+            }).pipe(Effect.orDie)
             if (!ctx.assistantMessage.summary) {
               // TODO(v2): Temporary dual-write while migrating session messages to v2 events.
               EventV2.run(SessionEvent.Step.Ended.Sync, {

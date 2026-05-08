@@ -29,6 +29,7 @@ import { type OpenAICompatibleChatModelId, openaiCompatibleProviderOptions } fro
 import { defaultOpenAICompatibleErrorStructure, type ProviderErrorStructure } from "../openai-compatible-error"
 import type { MetadataExtractor } from "./openai-compatible-metadata-extractor"
 import { prepareTools } from "./openai-compatible-prepare-tools"
+import { parseRateLimit } from "@/status/usage"
 
 export type OpenAICompatibleChatConfig = {
   provider: string
@@ -270,6 +271,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       providerMetadata[this.providerOptionsName].rejectedPredictionTokens =
         completionTokenDetails?.rejected_prediction_tokens
     }
+    providerMetadata[this.providerOptionsName].rateLimit = parseRateLimit(new Headers(responseHeaders as HeadersInit))
 
     return {
       content,

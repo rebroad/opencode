@@ -24,6 +24,7 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { EffectBridge } from "@/effect/bridge"
 import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
+import { trace } from "@/cli/cmd/run/trace"
 
 const log = Log.create({ service: "llm" })
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
@@ -226,6 +227,27 @@ const live: Layer.Layer<
         })
       }
       const sortedTools = Object.fromEntries(Object.entries(tools).toSorted(([a], [b]) => a.localeCompare(b)))
+
+      trace()?.write("llm.request", {
+        sessionID: input.sessionID,
+        model: {
+          providerID: input.model.providerID,
+          id: input.model.id,
+          api: input.model.api.id,
+        },
+        agent: input.agent.name,
+        system,
+        messages,
+        tools: Object.keys(sortedTools),
+        toolChoice: input.toolChoice,
+        params: {
+          temperature: params.temperature,
+          topP: params.topP,
+          topK: params.topK,
+          maxOutputTokens: params.maxOutputTokens,
+          options: params.options,
+        },
+      })
 
       // Wire up toolExecutor for DWS workflow models so that tool calls
       // from the workflow service are executed via opencode's tool system

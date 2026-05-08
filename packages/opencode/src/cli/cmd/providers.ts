@@ -253,9 +253,11 @@ export const ProvidersListCommand = effectCmd({
 
     UI.empty()
     const authPath = path.join(Global.Path.data, "auth.json")
+    const authDirectory = path.join(Global.Path.data, "auth.json.d")
     const homedir = os.homedir()
     const displayPath = authPath.startsWith(homedir) ? authPath.replace(homedir, "~") : authPath
-    yield* Prompt.intro(`Credentials ${UI.Style.TEXT_DIM}${displayPath}`)
+    const displayDirectory = authDirectory.startsWith(homedir) ? authDirectory.replace(homedir, "~") : authDirectory
+    yield* Prompt.intro(`Credentials ${UI.Style.TEXT_DIM}${displayPath} ${UI.Style.TEXT_DIM}(${displayDirectory})`)
     const results = Object.entries(yield* Effect.orDie(authSvc.all()))
     const database = yield* modelsDev.get()
 

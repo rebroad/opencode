@@ -30,6 +30,7 @@ import type { OpenAIResponsesIncludeOptions, OpenAIResponsesIncludeValue } from 
 import { prepareResponsesTools } from "./openai-responses-prepare-tools"
 import type { OpenAIResponsesModelId } from "./openai-responses-settings"
 import { localShellInputSchema } from "./tool/local-shell"
+import { parseRateLimit } from "@/status/usage"
 
 const webSearchCallItem = z.object({
   type: z.literal("web_search_call"),
@@ -734,6 +735,7 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV3 {
     if (typeof response.service_tier === "string") {
       providerMetadata.openai.serviceTier = response.service_tier
     }
+    providerMetadata.openai.rateLimit = parseRateLimit(new Headers(responseHeaders as HeadersInit))
 
     return {
       content,
